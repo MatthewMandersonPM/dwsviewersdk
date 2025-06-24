@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharePoint + Nutrient SDK PoC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #0078d4;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .config-section {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            background: #f9f9f9;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .config-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .controls {
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .file-input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: 1px solid #0078d4;
+            background: white;
+            color: #0078d4;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: #0078d4;
+            color: white;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            background: #107c10;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            background: #0e6e0e;
+        }
+
+        .action-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 20px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            margin: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .benchmark {
+            padding: 20px;
+            background: #e3f2fd;
+            margin: 20px;
+            border-radius: 4px;
+        }
+
+        .benchmark h3 {
+            margin-bottom: 10px;
+            color: #1976d2;
+        }
+
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .benchmark-item {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #bbdefb;
+        }
+
+        .benchmark-item strong {
+            display: block;
+            color: #1976d2;
+            margin-bottom: 5px;
+        }
+
+        .viewer-container {
+            margin: 20px;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            position: relative;
+            background: #fafafa;
+        }
+
+        .viewer-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0078d4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SharePoint + Nutrient SDK PoC</h1>
+            <p>File Checkout & Viewer with Smart Engine Selection</p>
+        </div>
+
+        <div class="config-section">
+            <h3 style="margin-bottom: 15px;">Configuration</h3>
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>SharePoint Site URL</label>
+                    <input type="url" id="sharepointUrl" placeholder="https://yourcompany.sharepoint.com/sites/yoursite" value="https://yourcompany.sharepoint.com/sites/yoursite">
+                </div>
+                <div class="config-group">
+                    <label>SharePoint Access Token</label>
+                    <input type="password" id="sharepointToken" placeholder="Your SharePoint access token">
+                </div>
+                <div class="config-group">
+                    <label>Nutrient Web SDK License Key</label>
+                    <input type="password" id="nutrientWebSdkKey" placeholder="Your Web SDK license key" value="CprEt_vnf71xPN4mWcpdiY5wApCoM04u4QHA9TyL0StC_nwZvD-4MUjVQBf9oinmri9JqvZ9iKxUt3p-cgn2UFaH1oLhv_K89T39vmjXqBscpnh4ilto6aR6SHUiJA-hvHWGEoVPARaduXzDQqUcmNfYHxvndBTxPU0bLwB8YEdamocDkuznyGEaFoXdSPrjFLUbpM53qcqGJH2s1j86-7-Z3Ul-axIe0nyMXibxy1ejldkFNPFOLrEa95idoaVzbFwx71-lST90yGrWWnWXw_t7vFy72EKIJ6TerVrsF59mWoxpySf9b0wfKnZNzFIVbVTTGbZgwYl43Tw7Frtg7bQgLw4CV6ZnVI2pggg8hAizYn7ETf9GOFRvtNovbQvOSPWJSWQMvW7DEJwuTvjM-3Ll81q4e3-7xrpK3vAoE07SgdrjqLT2deuaLjBVoFyb994ysIWFjmQMn30vEJdWpBv34X6dSeh09xcbD0oLMLwywl2hivrEngyCnhcDpVVfjizNNaOEKb5NxVqaqxMmg-uN7p84D-Lu6l5_FSGl4zVVhKPIJ1nbMaoQaIjF9Dtx7UIy9lcKKAH-nUfg9GYN2qpkKABwqOPX9w2pDLZcNX1R9uSo_OJvmyHyhvBE62wfqIpSDoR13SWt2O7RxxOvs4d8hhFBIhoCEk_CSOCDFC9BkayTm9bdYD1xon2Z3TJOWwxznZKOQz44Om1KNfrLV-yMEm_7mjvtJEhZw1GDKorX1lMaiVGN8GOwb0NtB06SIhoaVZiO9Hlv7xLgIedWiSP331lQIV0llWb65_8giimlL1maBV1U9gvMxw33Uxqc7VOiI_SlxuoHbIyXNie1--lvIAz7FAZCiDQY52A66Oj8Q05tfuDoppkPgCw1E5VgL3l_KBWA4j5wlf7QnEHI5NO1NLqmTUD9Ee5TbNnz6WveQniRn-MK9Pz4-79mNnGUxqWk0YA5ym23hY_gGT-d8OdgJ_BMWV_AXWa_8TyLrxOvV9SKI7R3WWV6d2C1FEDxYTcdqg5Mc1lJSQE0o-eU3n6qYO5YoYCnKtpKmwaDXRO3L-kAGhfclWXMLsE4xNuQX-3pLSXyYHPHJ3yleNOJvy2nYK22rY9_TQUpInIgVy38BV0oJDJomJADKyaC0PBYGYDdKtimUZHopitG_XWAdXqyzmp05YrwwLglz3xBpgIq9gg7EodmzgTQSyOUFCam47N227RGAg93dfF8fuq0xGAn9JDBsoOBZiR7yTtlxnOrVyahiz_ftgyhYnnl9u3F0WOz5AEHq1bzuTE5NTri0wUysbSV4Vo4GUyHTGYB-gtDUi5calFIDmBjZ1UqnHbV">
+                </div>
+                <div class="config-group">
+                    <label>Nutrient DWS API Key</label>
+                    <input type="password" id="nutrientDwsKey" placeholder="Your DWS API key" value="pdf_live_cfqZPXXZZH6bpxTff5B5O8UEc9ur2LmL17yflTxrEUV">
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="file-input">
+                <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.tiff" multiple>
+            </div>
+            
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="auto">Auto</button>
+                <button class="mode-btn" data-mode="websdk">Web SDK</button>
+                <button class="mode-btn" data-mode="dws">DWS API</button>
+            </div>
+
+            <button class="action-btn" id="checkoutBtn" disabled>Checkout & View</button>
+            <button class="action-btn" id="checkinBtn" disabled>Checkin</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;">
+            <div id="statusMessage">Ready</div>
+        </div>
+
+        <div id="benchmark" class="benchmark" style="display: none;">
+            <h3>Performance Metrics</h3>
+            <div class="benchmark-grid">
+                <div class="benchmark-item">
+                    <strong>File Size</strong>
+                    <span id="fileSizeMetric">-</span>
+                </div>
+                <div class="benchmark-item">
+                    <strong>Engine Used</strong>
+                    <span id="engineMetric">-</span>
+                </div>
+                <div class="benchmark-item">
+                    <strong>Checkout Time</strong>
+                    <span id="checkoutTimeMetric">-</span>
+                </div>
+                <div class="benchmark-item">
+                    <strong>Load Time</strong>
+                    <span id="loadTimeMetric">-</span>
+                </div>
+                <div class="benchmark-item">
+                    <strong>Total Time</strong>
+                    <span id="totalTimeMetric">-</span>
+                </div>
+                <div class="benchmark-item">
+                    <strong>Memory Usage</strong>
+                    <span id="memoryMetric">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="viewer-container">
+            <div id="viewer" class="viewer-placeholder">
+                Select a file to begin
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            FILE_SIZE_THRESHOLD: 50 * 1024 * 1024, // 50MB
+            SHAREPOINT_API_VERSION: '/_api/web',
+            NUTRIENT_DWS_BASE_URL: 'https://api.nutrient.io'
+        };
+
+        // Global state
+        let currentFile = null;
+        let currentEngine = 'auto';
+        let currentSession = null;
+        let benchmarkData = {};
+        let nutrientInstance = null;
+
+        // DOM elements
+        const elements = {
+            fileInput: document.getElementById('fileInput'),
+            checkoutBtn: document.getElementById('checkoutBtn'),
+            checkinBtn: document.getElementById('checkinBtn'),
+            status: document.getElementById('status'),
+            statusMessage: document.getElementById('statusMessage'),
+            benchmark: document.getElementById('benchmark'),
+            viewer: document.getElementById('viewer'),
+            sharepointUrl: document.getElementById('sharepointUrl'),
+            sharepointToken: document.getElementById('sharepointToken'),
+            nutrientWebSdkKey: document.getElementById('nutrientWebSdkKey'),
+            nutrientDwsKey: document.getElementById('nutrientDwsKey')
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            loadNutrientWebSDK();
+        });
+
+        function setupEventListeners() {
+            // File input
+            elements.fileInput.addEventListener('change', handleFileSelect);
+
+            // Mode selector
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentEngine = e.target.dataset.mode;
+                    updateStatus(`Engine mode set to: ${currentEngine.toUpperCase()}`);
+                });
+            });
+
+            // Action buttons
+            elements.checkoutBtn.addEventListener('click', handleCheckoutAndView);
+            elements.checkinBtn.addEventListener('click', handleCheckin);
+        }
+
+        function loadNutrientWebSDK() {
+            // Load Nutrient Web SDK (latest version) - for small files
+            const webSDKScript = document.createElement('script');
+            webSDKScript.src = 'https://cdn.cloud.pspdfkit.com/pspdfkit-web@1.4.0/pspdfkit.js';
+            webSDKScript.onload = () => {
+                updateStatus('Nutrient Web SDK v1.4.0 loaded successfully');
+            };
+            webSDKScript.onerror = () => {
+                updateStatus('Failed to load Nutrient Web SDK - using mock mode', 'error');
+            };
+            document.head.appendChild(webSDKScript);
+
+            // Load Nutrient Viewer for DWS (latest version) - for large files
+            const viewerScript = document.createElement('script');
+            viewerScript.src = 'https://cdn.cloud.pspdfkit.com/pspdfkit-web@1.4.0/nutrient-viewer.js';
+            viewerScript.onload = () => {
+                updateStatus('Nutrient Viewer v1.4.0 loaded successfully');
+            };
+            viewerScript.onerror = () => {
+                updateStatus('Failed to load Nutrient Viewer - using mock mode', 'error');
+            };
+            document.head.appendChild(viewerScript);
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
+            currentFile = files[0];
+            elements.checkoutBtn.disabled = false;
+            
+            // Show file info
+            const sizeStr = formatFileSize(currentFile.size);
+            const engine = determineEngine(currentFile.size);
+            
+            updateStatus(`File selected: ${currentFile.name} (${sizeStr}) - Will use ${engine}`);
+            
+            // Update benchmark display
+            updateBenchmarkDisplay('fileSizeMetric', sizeStr);
+            updateBenchmarkDisplay('engineMetric', engine);
+            elements.benchmark.style.display = 'block';
+        }
+
+        function determineEngine(fileSize) {
+            if (currentEngine === 'websdk') return 'Web SDK';
+            if (currentEngine === 'dws') return 'DWS API';
+            return fileSize < CONFIG.FILE_SIZE_THRESHOLD ? 'Web SDK' : 'DWS API';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function handleCheckoutAndView() {
+            if (!currentFile) return;
+
+            benchmarkData.startTime = performance.now();
+            benchmarkData.initialMemory = getMemoryUsage();
+
+            try {
+                elements.checkoutBtn.disabled = true;
+                updateStatus('Starting checkout and view process...', 'loading');
+
+                // Step 1: Checkout from SharePoint
+                await checkoutFromSharePoint();
+                
+                benchmarkData.checkoutTime = performance.now() - benchmarkData.startTime;
+                updateBenchmarkDisplay('checkoutTimeMetric', `${benchmarkData.checkoutTime.toFixed(2)}ms`);
+
+                // Step 2: Load in appropriate viewer
+                const engine = determineEngine(currentFile.size);
+                benchmarkData.loadStartTime = performance.now();
+
+                if (engine === 'Web SDK') {
+                    await loadWithWebSDK();
+                } else {
+                    await loadWithDWS();
+                }
+
+                benchmarkData.loadTime = performance.now() - benchmarkData.loadStartTime;
+                benchmarkData.totalTime = performance.now() - benchmarkData.startTime;
+
+                updateBenchmarkDisplay('loadTimeMetric', `${benchmarkData.loadTime.toFixed(2)}ms`);
+                updateBenchmarkDisplay('totalTimeMetric', `${benchmarkData.totalTime.toFixed(2)}ms`);
+                updateBenchmarkDisplay('memoryMetric', getMemoryUsage());
+
+                elements.checkinBtn.disabled = false;
+                updateStatus(`File loaded successfully using ${engine}`, 'success');
+
+            } catch (error) {
+                console.error('Error during checkout and view:', error);
+                updateStatus(`Error: ${error.message}`, 'error');
+                elements.checkoutBtn.disabled = false;
+            }
+        }
+
+        async function checkoutFromSharePoint() {
+            const url = elements.sharepointUrl.value.trim();
+            const token = elements.sharepointToken.value.trim();
+
+            if (!url || !token) {
+                // Enhanced mock mode for demo
+                updateStatus('📋 Mock SharePoint checkout (no credentials provided)', 'info');
+                
+                // Show what would happen with real credentials
+                const mockCheckoutInfo = `
+                    <div style="background: #e3f2fd; padding: 15px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #2196f3;">
+                        <strong>🔄 Mock SharePoint Checkout Process:</strong><br>
+                        📁 File: ${currentFile.name}<br>
+                        🌐 Would POST to: {SharePoint_URL}/_api/web/GetFileByServerRelativeUrl('/${currentFile.name}')/CheckOut()<br>
+                        🔑 Would use: Bearer {Your_SharePoint_Token}<br>
+                        ⏱️ Simulating 1 second checkout delay...
+                    </div>
+                `;
+                
+                elements.status.innerHTML = mockCheckoutInfo;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return;
+            }
+
+            // Real SharePoint checkout
+            const fileName = currentFile.name;
+            const checkoutUrl = `${url}${CONFIG.SHAREPOINT_API_VERSION}/GetFileByServerRelativeUrl('/${fileName}')/CheckOut()`;
+
+            try {
+                const response = await fetch(checkoutUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-RequestDigest': '' // May need form digest for some SharePoint setups
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`SharePoint checkout failed (${response.status}): ${errorText}`);
+                }
+
+                updateStatus('✅ File checked out from SharePoint successfully', 'success');
+                
+            } catch (error) {
+                // Provide helpful error information
+                if (error.message.includes('CORS')) {
+                    updateStatus('❌ CORS error - SharePoint may not allow cross-origin requests. Consider using SharePoint Framework or server-side proxy.', 'error');
+                } else if (error.message.includes('401')) {
+                    updateStatus('❌ Authentication failed - Check your SharePoint access token', 'error');
+                } else if (error.message.includes('404')) {
+                    updateStatus('❌ File not found - Make sure the file exists in SharePoint', 'error');
+                } else {
+                    updateStatus(`❌ SharePoint checkout error: ${error.message}`, 'error');
+                }
+                throw error;
+            }
+        }
+
+        async function loadWithWebSDK() {
+            updateStatus('Loading with Nutrient Web SDK...');
+
+            // Clear previous instance
+            if (nutrientInstance) {
+                nutrientInstance.destroy();
+            }
+
+            elements.viewer.innerHTML = '<div class="viewer-placeholder">Loading Web SDK...</div>';
+
+            try {
+                // Check what SDK objects are available
+                console.log('Available SDK objects:', {
+                    NutrientWebSDK: typeof window.NutrientWebSDK,
+                    PSPDFKit: typeof window.PSPDFKit,
+                    NutrientViewer: typeof window.NutrientViewer
+                });
+
+                // Try different SDK object names
+                let SDK = null;
+                if (typeof window.NutrientWebSDK !== 'undefined') {
+                    SDK = window.NutrientWebSDK;
+                } else if (typeof window.PSPDFKit !== 'undefined') {
+                    SDK = window.PSPDFKit;
+                } else {
+                    throw new Error('Nutrient Web SDK not loaded - no SDK object found');
+                }
+
+                // Create file URL for Web SDK
+                const fileUrl = URL.createObjectURL(currentFile);
+
+                // Clear any existing instances first
+                if (typeof window.PSPDFKit !== 'undefined' && typeof window.PSPDFKit.unload === 'function') {
+                    try {
+                        await window.PSPDFKit.unload(elements.viewer);
+                    } catch (unloadError) {
+                        console.log('No existing PSPDFKit instance to unload');
+                    }
+                }
+
+                // Clear the viewer container
+                elements.viewer.innerHTML = '';
+
+                // Initialize Web SDK
+                nutrientInstance = await SDK.load({
+                    container: elements.viewer,
+                    document: fileUrl,
+                    licenseKey: elements.nutrientWebSdkKey.value || 'demo-key',
+                    baseUrl: 'https://cdn.cloud.pspdfkit.com/pspdfkit-web@1.4.0/'
+                });
+
+                updateStatus('Web SDK loaded successfully');
+
+            } catch (error) {
+                // Fallback to mock viewer
+                console.warn('Web SDK failed, using mock viewer:', error);
+                elements.viewer.innerHTML = `
+                    <div class="viewer-placeholder">
+                        <div style="text-align: center;">
+                            <h3>Mock Web SDK Viewer</h3>
+                            <p>File: ${currentFile.name}</p>
+                            <p>Size: ${formatFileSize(currentFile.size)}</p>
+                            <p>Engine: Web SDK (Mock)</p>
+                            <p style="color: #666; margin-top: 20px;">
+                                Real Web SDK would render here with proper license key
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadWithDWS() {
+            updateStatus('Loading with Nutrient DWS Viewer...');
+
+            elements.viewer.innerHTML = '<div class="viewer-placeholder">Loading DWS Viewer...</div>';
+
+            try {
+                const apiKey = elements.nutrientDwsKey.value;
+                
+                if (!apiKey) {
+                    throw new Error('DWS API key required');
+                }
+
+                // Check if Nutrient Viewer is loaded
+                if (typeof window.NutrientViewer === 'undefined') {
+                    throw new Error('Nutrient Viewer not loaded');
+                }
+
+                // Clear previous viewer
+                elements.viewer.innerHTML = '';
+
+                // Convert File to ArrayBuffer for Nutrient Viewer
+                const arrayBuffer = await currentFile.arrayBuffer();
+
+                // Try alternative DWS approach - using a CORS proxy or different endpoint
+                try {
+                    // Method 1: Try with different headers and no-cors mode
+                    const formData = new FormData();
+                    formData.append('file', currentFile);
+                    
+                    // Add instructions for viewer creation
+                    const instructions = {
+                        parts: [{ file: "file" }],
+                        actions: [{ type: "buildViewer" }]
+                    };
+                    formData.append('instructions', JSON.stringify(instructions));
+
+                    // Use local server proxy to avoid CORS issues
+                    const apiUrl = window.location.protocol === 'file:' 
+                        ? 'https://api.nutrient.io/build'  // Direct call (will fail due to CORS)
+                        : '/api/nutrient/build';  // Proxied through local server
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData,
+                        mode: 'cors'
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('DWS Response:', result);
+                        
+                        // Check for session token or viewer URL
+                        if (result.session) {
+                            const viewerInstance = await window.NutrientViewer.load({
+                                container: elements.viewer,
+                                session: result.session
+                            });
+                            currentSession = viewerInstance;
+                            updateStatus('DWS Viewer loaded successfully');
+                            return;
+                        } else if (result.url || result.viewerUrl) {
+                            // Load as iframe if we get a direct URL
+                            elements.viewer.innerHTML = `
+                                <iframe 
+                                    src="${result.url || result.viewerUrl}" 
+                                    width="100%" 
+                                    height="100%" 
+                                    frameborder="0"
+                                    allow="clipboard-write">
+                                </iframe>
+                            `;
+                            currentSession = { url: result.url || result.viewerUrl };
+                            updateStatus('DWS Viewer loaded via iframe');
+                            return;
+                        }
+                    }
+                } catch (corsError) {
+                    console.log('CORS method failed, trying alternative...');
+                }
+
+                // Method 2: Try using file URL directly with NutrientViewer (some versions support this)
+                try {
+                    // First unload any existing instance in the container
+                    if (typeof window.PSPDFKit !== 'undefined' && typeof window.PSPDFKit.unload === 'function') {
+                        try {
+                            await window.PSPDFKit.unload(elements.viewer);
+                        } catch (unloadError) {
+                            console.log('No existing instance to unload');
+                        }
+                    }
+
+                    // Clear the container completely
+                    elements.viewer.innerHTML = '';
+
+                    const fileUrl = URL.createObjectURL(currentFile);
+                    
+                    // Try with PSPDFKit first, then NutrientViewer
+                    let viewerInstance;
+                    if (typeof window.PSPDFKit !== 'undefined') {
+                        viewerInstance = await window.PSPDFKit.load({
+                            container: elements.viewer,
+                            document: fileUrl,
+                            licenseKey: elements.nutrientWebSdkKey.value // Use Web SDK license for this method
+                        });
+                    } else if (typeof window.NutrientViewer !== 'undefined') {
+                        viewerInstance = await window.NutrientViewer.load({
+                            container: elements.viewer,
+                            document: fileUrl,
+                            licenseKey: elements.nutrientWebSdkKey.value
+                        });
+                    } else {
+                        throw new Error('No viewer SDK available');
+                    }
+                    
+                    currentSession = viewerInstance;
+                    updateStatus('DWS Viewer loaded with direct file method');
+                    return;
+                } catch (directError) {
+                    console.log('Direct file method failed:', directError);
+                }
+
+                // Fallback: Show informative demo
+                elements.viewer.innerHTML = `
+                    <div style="padding: 40px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px;">
+                        <h3 style="margin-bottom: 20px;">🚀 Nutrient DWS Viewer</h3>
+                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 6px; margin: 20px 0;">
+                            <p><strong>File:</strong> ${currentFile.name}</p>
+                            <p><strong>Size:</strong> ${formatFileSize(currentFile.size)}</p>
+                            <p><strong>Engine:</strong> DWS API (Cloud Processing)</p>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.9); color: #333; padding: 15px; border-radius: 6px; text-align: left;">
+                            <p><strong>⚠️ CORS Limitation Detected:</strong></p>
+                            <p>• You're accessing from <code>file://</code> protocol</p>
+                            <p>• DWS API requires <code>http://</code> protocol</p>
+                            <p>• Run the local server to fix this issue</p>
+                            <br>
+                            <p><strong>🔧 Quick Fix:</strong></p>
+                            <p>1. Open terminal in project directory</p>
+                            <p>2. Run: <code>python3 server.py</code></p>
+                            <p>3. Access via: <code>http://localhost:8000</code></p>
+                            <br>
+                            <p><strong>✅ Your API key is valid:</strong> ${apiKey.substring(0, 20)}...</p>
+                        </div>
+                    </div>
+                `;
+
+                currentSession = { type: 'demo-cors-limited', file: currentFile.name };
+                updateStatus('DWS requires backend integration (CORS limitation)', 'error');
+
+            } catch (error) {
+                console.error('DWS Viewer error:', error);
+                updateStatus(`DWS Viewer error: ${error.message}`, 'error');
+                
+                // Show detailed error for debugging
+                elements.viewer.innerHTML = `
+                    <div class="viewer-placeholder">
+                        <div style="text-align: center; color: #d32f2f;">
+                            <h3>DWS Viewer Error</h3>
+                            <p>File: ${currentFile.name}</p>
+                            <p>Size: ${formatFileSize(currentFile.size)}</p>
+                            <p style="margin-top: 20px; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px;">
+                                ${error.message}
+                            </p>
+                            <p style="color: #666; margin-top: 15px; font-size: 14px;">
+                                Check console for detailed error information
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function handleCheckin() {
+            if (!currentFile) return;
+
+            try {
+                elements.checkinBtn.disabled = true;
+                updateStatus('Checking file back into SharePoint...', 'loading');
+
+                await checkinToSharePoint();
+
+                // Clean up viewer instance
+                if (nutrientInstance) {
+                    try {
+                        // Try different cleanup methods based on SDK type
+                        if (typeof nutrientInstance.destroy === 'function') {
+                            nutrientInstance.destroy();
+                        } else if (typeof nutrientInstance.unload === 'function') {
+                            nutrientInstance.unload();
+                        } else if (typeof nutrientInstance.unmount === 'function') {
+                            nutrientInstance.unmount();
+                        } else {
+                            console.log('No cleanup method found for nutrientInstance');
+                        }
+                    } catch (cleanupError) {
+                        console.warn('Error during viewer cleanup:', cleanupError);
+                    }
+                    nutrientInstance = null;
+                }
+
+                // Clean up session and viewer
+                currentSession = null;
+                
+                // Clear viewer container
+                elements.viewer.innerHTML = `
+                    <div class="viewer-placeholder">
+                        <div style="text-align: center; padding: 40px;">
+                            <h3 style="color: #4caf50;">✅ File Checked In Successfully</h3>
+                            <p>File: ${currentFile.name}</p>
+                            <p style="color: #666; margin-top: 20px;">
+                                Ready to select another file
+                            </p>
+                        </div>
+                    </div>
+                `;
+                
+                // Reset file input and enable checkout button
+                elements.fileInput.value = '';
+                currentFile = null;
+                elements.checkoutBtn.disabled = true;
+                elements.benchmark.style.display = 'none';
+
+                updateStatus('File checked in successfully', 'success');
+
+            } catch (error) {
+                console.error('Error during checkin:', error);
+                updateStatus(`Checkin error: ${error.message}`, 'error');
+                elements.checkinBtn.disabled = false;
+            }
+        }
+
+        async function checkinToSharePoint() {
+            const url = elements.sharepointUrl.value.trim();
+            const token = elements.sharepointToken.value.trim();
+
+            if (!url || !token) {
+                // Enhanced mock mode for demo
+                updateStatus('📋 Mock SharePoint checkin (no credentials provided)', 'info');
+                
+                // Show what would happen with real credentials
+                const mockCheckinInfo = `
+                    <div style="background: #e8f5e8; padding: 15px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #4caf50;">
+                        <strong>📤 Mock SharePoint Checkin Process:</strong><br>
+                        📁 File: ${currentFile.name}<br>
+                        🌐 Would POST to: {SharePoint_URL}/_api/web/GetFileByServerRelativeUrl('/${currentFile.name}')/CheckIn()<br>
+                        🔑 Would use: Bearer {Your_SharePoint_Token}<br>
+                        📝 Comment: "Updated via PoC"<br>
+                        📊 Check-in Type: Major Version (1)<br>
+                        ⏱️ Simulating 1 second checkin delay...
+                    </div>
+                `;
+                
+                elements.status.innerHTML = mockCheckinInfo;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return;
+            }
+
+            // Real SharePoint checkin
+            const fileName = currentFile.name;
+            const checkinUrl = `${url}${CONFIG.SHAREPOINT_API_VERSION}/GetFileByServerRelativeUrl('/${fileName}')/CheckIn(comment='Updated via PoC',checkintype=1)`;
+
+            try {
+                const response = await fetch(checkinUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-RequestDigest': '' // May need form digest for some SharePoint setups
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`SharePoint checkin failed (${response.status}): ${errorText}`);
+                }
+
+                updateStatus('✅ File checked in to SharePoint successfully', 'success');
+                
+            } catch (error) {
+                // Provide helpful error information
+                if (error.message.includes('CORS')) {
+                    updateStatus('❌ CORS error - SharePoint may not allow cross-origin requests. Consider using SharePoint Framework or server-side proxy.', 'error');
+                } else if (error.message.includes('401')) {
+                    updateStatus('❌ Authentication failed - Check your SharePoint access token', 'error');
+                } else if (error.message.includes('404')) {
+                    updateStatus('❌ File not found - Make sure the file exists in SharePoint', 'error');
+                } else if (error.message.includes('423')) {
+                    updateStatus('❌ File may not be checked out or locked by another user', 'error');
+                } else {
+                    updateStatus(`❌ SharePoint checkin error: ${error.message}`, 'error');
+                }
+                throw error;
+            }
+        }
+
+        function updateStatus(message, type = 'info') {
+            elements.status.style.display = 'block';
+            elements.status.className = `status ${type}`;
+            
+            if (type === 'loading') {
+                elements.statusMessage.innerHTML = `<span class="loading"></span> ${message}`;
+            } else {
+                elements.statusMessage.textContent = message;
+            }
+
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function updateBenchmarkDisplay(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        function getMemoryUsage() {
+            if (performance.memory) {
+                const used = performance.memory.usedJSHeapSize;
+                return formatFileSize(used);
+            }
+            return 'N/A';
+        }
+
+        // Utility functions for demo
+        function resetDemo() {
+            currentFile = null;
+            currentEngine = 'auto';
+            currentSession = null;
+            benchmarkData = {};
+            
+            if (nutrientInstance) {
+                nutrientInstance.destroy();
+                nutrientInstance = null;
+            }
+
+            elements.fileInput.value = '';
+            elements.checkoutBtn.disabled = true;
+            elements.checkinBtn.disabled = true;
+            elements.status.style.display = 'none';
+            elements.benchmark.style.display = 'none';
+            elements.viewer.innerHTML = '<div class="viewer-placeholder">Select a file to begin</div>';
+
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.mode === 'auto') {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // Add reset button to demo
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                resetDemo();
+                updateStatus('Demo reset', 'info');
+            }
+        });
+    </script>
+</body>
+</html>

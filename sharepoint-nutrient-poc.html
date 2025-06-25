@@ -233,7 +233,10 @@
             <div class="file-input">
                 <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.tiff" multiple>
             </div>
-            
+            <div class="config-group" style="min-width:200px;">
+                <label for="fileDesc">Description</label>
+                <input type="text" id="fileDesc" placeholder="Enter a description for this file">
+            </div>
             <div class="mode-selector">
                 <button class="mode-btn active" data-mode="auto">Auto</button>
                 <button class="mode-btn" data-mode="websdk">Web SDK</button>
@@ -283,6 +286,10 @@
                 Select a file to begin
             </div>
         </div>
+        <div id="history" class="benchmark" style="display:none; margin-top:30px;">
+            <h3>History of Viewed Files</h3>
+            <div id="historyTable"></div>
+        </div>
     </div>
 
     <script>
@@ -312,13 +319,17 @@
             sharepointUrl: document.getElementById('sharepointUrl'),
             sharepointToken: document.getElementById('sharepointToken'),
             nutrientWebSdkKey: document.getElementById('nutrientWebSdkKey'),
-            nutrientDwsKey: document.getElementById('nutrientDwsKey')
+            nutrientDwsKey: document.getElementById('nutrientDwsKey'),
+            fileDesc: document.getElementById('fileDesc'),
+            history: document.getElementById('history'),
+            historyTable: document.getElementById('historyTable')
         };
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             loadNutrientWebSDK();
+            loadHistory();
         });
 
         function setupEventListeners() {
@@ -432,6 +443,27 @@
 
                 elements.checkinBtn.disabled = false;
                 updateStatus(`File loaded successfully using ${engine}`, 'success');
+
+                // Log metrics to server
+                const metrics = {
+                    fileName: currentFile.name,
+                    fileSize: currentFile.size,
+                    engine,
+                    checkoutTime: benchmarkData.checkoutTime,
+                    loadTime: benchmarkData.loadTime,
+                    totalTime: benchmarkData.totalTime,
+                    memory: getMemoryUsage(),
+                    description: elements.fileDesc.value,
+                    timestamp: new Date().toISOString()
+                };
+                try {
+                    await fetch('/log-metrics', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(metrics)
+                    });
+                } catch (e) { console.warn('Failed to log metrics:', e); }
+                loadHistory();
 
             } catch (error) {
                 console.error('Error during checkout and view:', error);
@@ -935,6 +967,48 @@
                 updateStatus('Demo reset', 'info');
             }
         });
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/metrics-log');
+                if (!res.ok) throw new Error('Failed to fetch history');
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    elements.history.style.display = 'none';
+                    return;
+                }
+                elements.history.style.display = 'block';
+                let html = `<table style="width:100%;border-collapse:collapse;">
+                    <tr style="background:#bbdefb;">
+                        <th style="padding:6px;">File Name</th>
+                        <th>Description</th>
+                        <th>Engine</th>
+                        <th>File Size</th>
+                        <th>Checkout Time (ms)</th>
+                        <th>Load Time (ms)</th>
+                        <th>Total Time (ms)</th>
+                        <th>Memory</th>
+                        <th>Timestamp</th>
+                    </tr>`;
+                for (const m of data.slice(-20).reverse()) {
+                    html += `<tr style="background:#fff;">
+                        <td style="padding:6px;">${m.fileName || ''}</td>
+                        <td>${m.description || ''}</td>
+                        <td>${m.engine || ''}</td>
+                        <td>${typeof m.fileSize === 'number' ? formatFileSize(m.fileSize) : ''}</td>
+                        <td>${m.checkoutTime ? m.checkoutTime.toFixed(2) : ''}</td>
+                        <td>${m.loadTime ? m.loadTime.toFixed(2) : ''}</td>
+                        <td>${m.totalTime ? m.totalTime.toFixed(2) : ''}</td>
+                        <td>${m.memory || ''}</td>
+                        <td>${m.timestamp ? new Date(m.timestamp).toLocaleString() : ''}</td>
+                    </tr>`;
+                }
+                html += '</table>';
+                elements.historyTable.innerHTML = html;
+            } catch (e) {
+                elements.history.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>

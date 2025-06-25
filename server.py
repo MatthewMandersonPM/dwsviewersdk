@@ -11,6 +11,10 @@ import os
 import sys
 from urllib.parse import urlparse, parse_qs
 import json
+import threading
+
+METRICS_LOG_FILE = 'metrics.log'
+log_lock = threading.Lock()
 
 class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -26,6 +30,24 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        # Logging endpoint for performance metrics
+        if self.path == '/log-metrics':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                metrics = json.loads(post_data.decode('utf-8'))
+                with log_lock:
+                    with open(METRICS_LOG_FILE, 'a') as f:
+                        f.write(json.dumps(metrics) + '\n')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"status": "ok"}')
+            except Exception as e:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(f'{{"error": "{str(e)}"}}'.encode())
+            return
         # Simple proxy for Nutrient DWS API calls
         if self.path.startswith('/api/nutrient/'):
             try:
@@ -74,6 +96,27 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         # Default POST handling
         super().do_POST()
+
+    def do_GET(self):
+        if self.path == '/metrics-log':
+            try:
+                with log_lock:
+                    if not os.path.exists(METRICS_LOG_FILE):
+                        metrics_list = []
+                    else:
+                        with open(METRICS_LOG_FILE, 'r') as f:
+                            metrics_list = [json.loads(line) for line in f if line.strip()]
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(metrics_list).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(f'{{"error": "{str(e)}"}}'.encode())
+            return
+        # Default GET handling
+        super().do_GET()
 
 def main():
     PORT = 8000
